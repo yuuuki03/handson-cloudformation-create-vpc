@@ -1,0 +1,133 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Parameters:
+  CIDER:
+    Type: String
+  az1:
+    Type: String
+  az2:
+    Type: String
+  PublicSubnetCIDER01:
+    Type: String
+  PublicSubnetCIDER02:
+    Type: String
+Resources:
+  VPC:
+    Type: "AWS::EC2::VPC"
+    Properties:
+      CidrBlock: !Ref CIDER
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      InstanceTenancy: default
+      Tags:
+        - Key: Name
+          Value: ArchOnAWSCFnDemoVPC
+  InternetGateway:
+    Type: "AWS::EC2::InternetGateway"
+    Properties:
+      Tags:
+        - Key: Name
+          Value: igwSingleWpVpc
+  AttachIGW:
+    Type: "AWS::EC2::VPCGatewayAttachment"
+    DependsOn:
+      - VPC
+      - InternetGateway
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref VPC
+  PublicSubnet01:
+    Type: "AWS::EC2::Subnet"
+    DependsOn: VPC
+    Properties:
+      AvailabilityZone: !Ref az1
+      CidrBlock: !Ref PublicSubnetCIDER01
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: publicSubnet01
+      VpcId: !Ref VPC
+  PublicRouteTable:
+    Type: "AWS::EC2::RouteTable"
+    DependsOn: VPC
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: PublicRTB
+  PublicRoute:
+    Type: "AWS::EC2::Route"
+    DependsOn:
+      - PublicRouteTable
+      - InternetGateway
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+  SubnetRouteTableAssociation01:
+    Type: "AWS::EC2::SubnetRouteTableAssociation"
+    DependsOn:
+      - PublicRouteTable
+      - PublicSubnet01
+    Properties:
+      SubnetId: !Ref PublicSubnet01
+      RouteTableId: !Ref PublicRouteTable
+  PublicSubnet02:
+    Type: "AWS::EC2::Subnet"
+    DependsOn: VPC
+    Properties:
+      AvailabilityZone: !Ref az2
+      CidrBlock: !Ref PublicSubnetCIDER02
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: publicSubnet02
+      VpcId: !Ref VPC
+  SubnetRouteTableAssociation02:
+    Type: "AWS::EC2::SubnetRouteTableAssociation"
+    DependsOn:
+      - PublicRouteTable
+      - PublicSubnet02
+    Properties:
+      SubnetId: !Ref PublicSubnet02
+      RouteTableId: !Ref PublicRouteTable
+  SecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    DependsOn: VPC
+    Properties:
+      GroupName: updated-SG
+      GroupDescription: Allow http and ssh to anywhere
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+  EC2Role:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Path: /
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+  EC2InstanceProfile:
+    Type: "AWS::IAM::InstanceProfile"
+    Properties:
+      Path: "/"
+      Roles:
+        - !Ref EC2Role

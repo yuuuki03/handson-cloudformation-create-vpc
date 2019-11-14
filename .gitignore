@@ -1,0 +1,6 @@
+./deploy-create-vpc-template.yml
+./deploy-update-vpc-template.yml
+.idea/modules.xml
+.idea/misc.xml
+.idea/vcs.xml
+.idea/handson-cloudformation-create-vpc.iml
